@@ -141,13 +141,28 @@ namespace MDWMBlurGlass
 			err = GetBaseLanguageString(L"symloadfail");
 			return false;
 		}
-		const bool ret = Inject(GetProcessId(L"dwm.exe"), Utils::GetCurrentDir() + L"\\DWMBlurGlassExt.dll", err);
-		if(ret)
+		PROCESSENTRY32W pe;
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		pe.dwSize = sizeof(PROCESSENTRY32W);
+		if (!Process32FirstW(hSnapshot, &pe))
+			return true;
+
+		while (Process32NextW(hSnapshot, &pe) != FALSE)
 		{
-			BOOL enable = TRUE;
-			SystemParametersInfoW(SPI_SETGRADIENTCAPTIONS, 0, &enable, SPIF_SENDCHANGE);
+			if (_wcsicmp(pe.szExeFile, name.data()) == 0)
+			{
+				const bool ret = Inject(pe.th32ProcessID, Utils::GetCurrentDir() + L"\\DWMBlurGlassExt.dll", err);
+				if(ret)
+				{
+					BOOL enable = TRUE;
+					SystemParametersInfoW(SPI_SETGRADIENTCAPTIONS, 0, &enable, SPIF_SENDCHANGE);
+				} else {
+					return false;
+				}
+			}
 		}
-		return ret;
+		CloseHandle(hSnapshot);
+		return true;
 	}
 
 	bool LoadDWMExtension(std::wstring& err, Mui::XML::MuiXML* ui)
